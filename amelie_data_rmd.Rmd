@@ -1,30 +1,63 @@
 ---
-title: "Amelie_data"
+title: "Ameli_data"
 author: "Diakaria Korera"
 date: "`r Sys.Date()`"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, cache = FALSE, echo = FALSE, message = FALSE, warning = FALSE, tidy = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ```{r les_packages, echo=FALSE, cache=TRUE}
-pacman::p_load(rio,openxlsx,tidyverse,flextable,lubridate,DBI, duckdb,gtsummary)
+library(dplyr)
+library(flextable)
+library(gtsummary)
+library(DBI)
+library(duckdb)
+#pacman::p_load(dplyr, rio,openxlsx,tidyverse,flextable,lubridate, DBI, duckdb,gtsummary)
 
 ```
 
 ## Connexion à la base de données DuckDB
 
-```{r connexion_db, echo = FALSE}
-con <- dbConnect(duckdb::duckdb(), dbdir = "C:/Users/korer/ameli_data.duckdb")
-
+```{r connexion_db, message=FALSE}
+# Se connecter à la base de données
+connexion = DBI::dbConnect(duckdb::duckdb(), dbdir = "C:/Users/korer/ameli_data.duckdb")
 ```
 
-
-```{r}
+## Récuperation des data
+```{r create_df, echo=FALSE, message=FALSE}
 # Charger les données dans un DataFrame
-cancer_data <- dbGetQuery(con, "SELECT * FROM cancer_data")
+cancer_data = DBI::dbGetQuery(connexion, "SELECT * FROM cancer_data")
+DBI::dbDisconnect(connexion, shutdown = TRUE)
+```
+
+```{r description_pathologies, echo=FALSE, message=FALSE}
+library(dplyr)
+library(flextable)
+cancer_patho = cancer_data %>%
+  group_by(annee, patho_niv3) %>%
+  summarise(total_cases = sum(npop)) %>% 
+  flextable() %>% 
+  autofit() %>% 
+  fit_to_width(7.5) %>% 
+  set_caption(caption = "Nombre de cas par pathologie et par an")
 
 ```
 
+`r cancer_patho`
+
+## Tableau descriptif du data frame issu de la base Duckdb avec gtsummary
+```{r, descript_cancer_data, echo=FALSE, message=FALSE}
+library(gtsummary)
+summary_cancer_data <- cancer_data %>%
+  tbl_summary(
+    # Définir les options pour le tableau descriptif
+    by = NULL,  # Définir la variable par laquelle stratifier si nécessaire
+    statistic = list(all_categorical() ~ "{n} ({p}%)",
+                      all_continuous() ~ "{mean} ({sd})")
+  )
+
+```
+`r summary_cancer_data`
 
